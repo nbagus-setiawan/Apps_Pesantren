@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Kamar;
+use App\Models\Santri;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class KamarController extends Controller
 {
@@ -32,7 +34,17 @@ class KamarController extends Controller
     public function pindahkanSantri(Request $request, Kamar $kamar)
     {
         $data = $request->validate(['santri_id' => ['required', 'exists:santri,id']]);
-        $santri = \App\Models\Santri::findOrFail($data['santri_id']);
+        $santri = Santri::findOrFail($data['santri_id']);
+
+        // Cegah pindah ke kamar yang sudah penuh. Santri yang sudah ada
+        // di kamar ini sendiri (mis. update data lain) tidak dihitung.
+        $okupansiSaatIni = $kamar->santri()->where('id', '!=', $santri->id)->count();
+
+        if ($okupansiSaatIni >= $kamar->kapasitas) {
+            throw ValidationException::withMessages([
+                'kamar_id' => ["Kamar {$kamar->nama} sudah penuh (kapasitas {$kamar->kapasitas})."],
+            ]);
+        }
 
         $santri->riwayatKamar()->whereNull('tanggal_selesai')->update(['tanggal_selesai' => now()]);
         $santri->riwayatKamar()->create([

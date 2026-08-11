@@ -27,6 +27,17 @@ class TagihanController extends Controller
     /** Upload bukti transfer untuk sebuah tagihan */
     public function bayar(Request $request, Tagihan $tagihan)
     {
+        // Pastikan tagihan ini benar-benar milik salah satu anak wali yang login.
+        // Tanpa cek ini, wali bisa membayar tagihan santri lain hanya dengan
+        // menebak ID tagihan di URL (IDOR).
+        $santriIds = $request->user()->anak()->pluck('santri.id');
+
+        abort_unless(
+            $santriIds->contains($tagihan->santri_id),
+            403,
+            'Tagihan ini bukan milik anak Anda.'
+        );
+
         $data = $request->validate([
             'jumlah_bayar' => ['required', 'numeric', 'min:0'],
             'bukti_transfer' => ['required', 'file', 'image', 'max:5120'],

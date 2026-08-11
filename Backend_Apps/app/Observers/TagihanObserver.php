@@ -22,10 +22,14 @@ class TagihanObserver
         }
     }
 
-    /** Saat status tagihan berubah jadi lunas, beri tahu wali */
+    /** Saat status tagihan berubah, beri tahu wali sesuai perubahan status */
     public function updated(Tagihan $tagihan): void
     {
-        if ($tagihan->isDirty('status') && $tagihan->status === 'lunas') {
+        if (! $tagihan->isDirty('status')) {
+            return;
+        }
+
+        if ($tagihan->status === 'lunas') {
             $tagihan->load('santri.wali');
 
             foreach ($tagihan->santri->wali as $wali) {
@@ -33,6 +37,19 @@ class TagihanObserver
                     'user_id' => $wali->id,
                     'judul' => 'Pembayaran Terverifikasi',
                     'isi' => "Tagihan {$tagihan->periode} untuk {$tagihan->santri->nama} sudah lunas.",
+                    'tipe' => 'tagihan',
+                ]);
+            }
+        }
+
+        if ($tagihan->status === 'telat') {
+            $tagihan->load('santri.wali');
+
+            foreach ($tagihan->santri->wali as $wali) {
+                Notifikasi::create([
+                    'user_id' => $wali->id,
+                    'judul' => 'Tagihan Telat',
+                    'isi' => "Tagihan {$tagihan->periode} untuk {$tagihan->santri->nama} sudah melewati jatuh tempo dan berstatus telat.",
                     'tipe' => 'tagihan',
                 ]);
             }

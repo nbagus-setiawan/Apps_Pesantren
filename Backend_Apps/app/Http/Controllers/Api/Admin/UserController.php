@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -48,7 +49,22 @@ class UserController extends Controller
             'email' => ['sometimes', 'email', 'unique:users,email,' . $user->id],
             'phone' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
+            'role' => ['sometimes', Rule::in(['admin', 'ustadz', 'wali_santri'])],
         ]);
+
+        // Cegah admin terakhir tidak sengaja "menurunkan" dirinya sendiri
+        // sehingga sistem kehilangan admin sama sekali.
+        if (
+            isset($data['role'])
+            && $data['role'] !== 'admin'
+            && $user->id === $request->user()->id
+            && $user->role === 'admin'
+            && User::where('role', 'admin')->where('id', '!=', $user->id)->count() === 0
+        ) {
+            return response()->json([
+                'message' => 'Tidak bisa mengubah role admin terakhir di sistem.',
+            ], 422);
+        }
 
         $user->update($data);
 

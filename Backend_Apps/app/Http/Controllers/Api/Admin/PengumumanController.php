@@ -22,6 +22,14 @@ class PengumumanController extends Controller
             'target_kelas_id' => ['nullable', 'exists:kelas,id'],
         ]);
 
+        // target_kelas_id hanya masuk akal jika target_role = 'wali_santri'
+        // (lihat App\Observers\PengumumanObserver — filter kelas memakai
+        // relasi User::anak(), yang hanya dimiliki wali_santri). Kombinasi
+        // lain akan menghasilkan notifikasi yang tidak terkirim ke siapa pun.
+        if ($data['target_role'] !== 'wali_santri') {
+            $data['target_kelas_id'] = null;
+        }
+
         $data['dibuat_oleh'] = $request->user()->id;
 
         return response()->json(Pengumuman::create($data), 201);

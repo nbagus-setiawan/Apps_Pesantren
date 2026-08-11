@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PenugasanUstadz;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PenugasanUstadzController extends Controller
 {
@@ -12,9 +13,25 @@ class PenugasanUstadzController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'ustadz_id' => ['required', 'exists:users,id'],
+            'ustadz_id' => [
+                'required',
+                Rule::exists('users', 'id')->where('role', 'ustadz'),
+            ],
             'jenis_tugas' => ['required', 'in:perizinan,keuangan'],
         ]);
+
+        // Cegah penunjukan ganda: kalau ustadz ini sudah aktif untuk jenis
+        // tugas yang sama, tidak perlu baris baru.
+        $sudahAktif = PenugasanUstadz::where('ustadz_id', $data['ustadz_id'])
+            ->where('jenis_tugas', $data['jenis_tugas'])
+            ->where('is_active', true)
+            ->exists();
+
+        if ($sudahAktif) {
+            return response()->json([
+                'message' => 'Ustadz ini sudah aktif ditugaskan untuk jenis tugas tersebut.',
+            ], 422);
+        }
 
         $penugasan = PenugasanUstadz::create([
             ...$data,
