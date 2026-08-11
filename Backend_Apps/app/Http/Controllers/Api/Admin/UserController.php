@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
@@ -28,7 +27,10 @@ class UserController extends Controller
             'role' => ['required', 'in:admin,ustadz,wali_santri'],
         ]);
 
-        $data['password'] = Hash::make($data['password']);
+        // Tidak perlu Hash::make() di sini — model User sudah melakukan
+        // hashing otomatis lewat cast 'password' => 'hashed'. Meng-hash
+        // manual di sini akan menyebabkan password ter-hash dua kali
+        // sehingga login gagal untuk user yang dibuat lewat endpoint ini.
         $user = User::create($data);
 
         return response()->json($user, 201);

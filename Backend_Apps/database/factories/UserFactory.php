@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -11,8 +10,6 @@ use Illuminate\Support\Str;
  */
 class UserFactory extends Factory
 {
-    protected static ?string $password;
-
     public function definition(): array
     {
         return [
@@ -20,7 +17,10 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'phone' => fake()->phoneNumber(),
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            // Password plain — model User meng-hash otomatis lewat cast
+            // 'password' => 'hashed'. Jangan panggil Hash::make()/bcrypt()
+            // di sini, karena akan menyebabkan double hashing.
+            'password' => 'password',
             'role' => 'wali_santri',
             'is_active' => true,
             'remember_token' => Str::random(10),

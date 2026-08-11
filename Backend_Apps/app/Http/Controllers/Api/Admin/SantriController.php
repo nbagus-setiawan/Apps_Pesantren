@@ -15,8 +15,17 @@ class SantriController extends Controller
         $santri = Santri::with(['kelas', 'kamar'])
             ->when($request->kelas_id, fn ($q) => $q->where('kelas_id', $request->kelas_id))
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->when($request->search, fn ($q) => $q->where('nama', 'like', "%{$request->search}%")
-                ->orWhere('nis', 'like', "%{$request->search}%"))
+            // PERBAIKAN: bungkus nama/nis dalam satu grup where() agar
+            // orWhere tidak lepas dari filter kelas_id/status di atas.
+            // Tanpa grouping, SQL yang terbentuk adalah:
+            //   WHERE kelas_id = ? AND status = ? AND nama LIKE ? OR nis LIKE ?
+            // yang membuat filter kelas_id/status bocor saat search dipakai.
+            ->when($request->search, function ($q) use ($request) {
+                $q->where(function ($sub) use ($request) {
+                    $sub->where('nama', 'like', "%{$request->search}%")
+                        ->orWhere('nis', 'like', "%{$request->search}%");
+                });
+            })
             ->paginate($request->integer('per_page', 20));
 
         return SantriResource::collection($santri);

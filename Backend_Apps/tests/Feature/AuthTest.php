@@ -12,7 +12,9 @@ class AuthTest extends TestCase
 
     public function test_login_dengan_kredensial_benar(): void
     {
-        $user = User::factory()->admin()->create(['password' => bcrypt('rahasia123')]);
+        // Password plain — cast 'hashed' di model User yang menghash.
+        // Jangan bungkus dengan bcrypt()/Hash::make() di sini.
+        $user = User::factory()->admin()->create(['password' => 'rahasia123']);
 
         $response = $this->postJson('/api/login', [
             'email' => $user->email,
@@ -24,7 +26,7 @@ class AuthTest extends TestCase
 
     public function test_login_ditolak_jika_password_salah(): void
     {
-        $user = User::factory()->admin()->create(['password' => bcrypt('rahasia123')]);
+        $user = User::factory()->admin()->create(['password' => 'rahasia123']);
 
         $response = $this->postJson('/api/login', [
             'email' => $user->email,
@@ -37,7 +39,7 @@ class AuthTest extends TestCase
     public function test_login_ditolak_untuk_user_nonaktif(): void
     {
         $user = User::factory()->admin()->create([
-            'password' => bcrypt('rahasia123'),
+            'password' => 'rahasia123',
             'is_active' => false,
         ]);
 
