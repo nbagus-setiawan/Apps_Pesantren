@@ -57,5 +57,7 @@ class DatabaseSeeder extends Seeder
         ] as $jt) {
             JenisTagihan::create($jt);
         }
+
+        $this->call(PengaturanSeeder::class);
     }
 }

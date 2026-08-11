@@ -9,8 +9,13 @@ use App\Http\Controllers\Api\Admin\JenisTagihanController;
 use App\Http\Controllers\Api\Admin\KamarController;
 use App\Http\Controllers\Api\Admin\KegiatanController;
 use App\Http\Controllers\Api\Admin\KelasController as AdminKelasController;
+use App\Http\Controllers\Api\Admin\LaporanController;
 use App\Http\Controllers\Api\Admin\MataPelajaranController;
+use App\Http\Controllers\Api\Admin\PelanggaranRekapController;
+use App\Http\Controllers\Api\Admin\PengajuanPindahKelasController as AdminPengajuanPindahKelasController;
+use App\Http\Controllers\Api\Admin\PengaturanController;
 use App\Http\Controllers\Api\Admin\PengumumanController as AdminPengumumanController;
+use App\Http\Controllers\Api\Admin\PenjemputanController;
 use App\Http\Controllers\Api\Admin\PenugasanUstadzController;
 use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\TagihanController as AdminTagihanController;
@@ -27,6 +32,7 @@ use App\Http\Controllers\Api\Ustadz\KelasController as UstadzKelasController;
 use App\Http\Controllers\Api\Ustadz\NilaiController;
 use App\Http\Controllers\Api\Ustadz\PelanggaranController;
 use App\Http\Controllers\Api\Ustadz\PembayaranController;
+use App\Http\Controllers\Api\Ustadz\PengajuanPindahKelasController as UstadzPengajuanPindahKelasController;
 use App\Http\Controllers\Api\Ustadz\PerizinanController as UstadzPerizinanController;
 use App\Http\Controllers\Api\Ustadz\TagihanController as UstadzTagihanController;
 use App\Http\Controllers\Api\WaliSantri\AnakController;
@@ -54,6 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::apiResource('users', UserController::class);
         Route::apiResource('santri', SantriController::class);
+        Route::post('santri/import', [SantriController::class, 'import']);
         Route::post('santri/{santri}/pindah-kelas', [SantriController::class, 'pindahKelas']);
         Route::apiResource('kelas', AdminKelasController::class);
         Route::apiResource('asrama', AsramaController::class);
@@ -82,6 +89,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('penugasan-ustadz/{penugasan}/cabut', [PenugasanUstadzController::class, 'cabut']);
         Route::get('izin-ustadz', [IzinUstadzController::class, 'index']);
         Route::post('izin-ustadz/{izinUstadz}/proses', [IzinUstadzController::class, 'proses']);
+
+        // Pengajuan pindah kelas (approval alur, diajukan oleh Ustadz)
+        Route::get('pengajuan-pindah-kelas', [AdminPengajuanPindahKelasController::class, 'index']);
+        Route::post('pengajuan-pindah-kelas/{pengajuan}/proses', [AdminPengajuanPindahKelasController::class, 'proses']);
+
+        // Pengaturan sistem (key-value): ambang batas poin, durasi QR, dll
+        Route::get('pengaturan', [PengaturanController::class, 'index']);
+        Route::put('pengaturan', [PengaturanController::class, 'update']);
+
+        // Rekap poin pelanggaran + ambang batas
+        Route::get('pelanggaran/rekap', [PelanggaranRekapController::class, 'index']);
+
+        // Log penjemputan (QR)
+        Route::get('penjemputan', [PenjemputanController::class, 'index']);
+
+        // Laporan (CSV & PDF)
+        Route::get('laporan/absensi', [LaporanController::class, 'absensi']);
+        Route::get('laporan/keuangan', [LaporanController::class, 'keuangan']);
     });
 
     // ── USTADZ ───────────────────────────────────────────────
@@ -98,6 +123,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('catatan-perkembangan', CatatanPerkembanganController::class)->only(['index', 'store']);
 
         Route::apiResource('izin', IzinController::class)->only(['index', 'store']);
+
+        // Ajukan pindah kelas santri (butuh approval Admin)
+        Route::post('pengajuan-pindah-kelas', [UstadzPengajuanPindahKelasController::class, 'store']);
+        Route::get('pengajuan-pindah-kelas', [UstadzPengajuanPindahKelasController::class, 'index']);
 
         // hanya aktif jika ustadz punya penugasan aktif terkait (dicek di controller)
         Route::get('perizinan', [UstadzPerizinanController::class, 'index']);
