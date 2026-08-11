@@ -1,9 +1,11 @@
 # PRD (Product Requirements Document)
 # Sistem Manajemen Pesantren — Web Admin & Mobile Wali Santri
 
-**Versi:** 1.4
-**Tanggal:** 10 Agustus 2026
+**Versi:** 1.5
+**Tanggal:** 12 Agustus 2026
 **Status:** Draft (Fase 1 final, Fase 2 & 3 sudah mencakup fitur kualitas, bisnis, legal & operasional jangka panjang)
+
+> **Perubahan dari v1.4:** Revisi arsitektur web Admin/Ustadz — dari asumsi Laravel session-based (Blade view) menjadi **Next.js sebagai SPA terpisah** yang konsumsi REST API Laravel yang sama dengan mobile app. Lihat Bagian 2 untuk detail lengkap.
 
 ---
 
@@ -29,11 +31,22 @@ Pesantren membutuhkan satu sistem terpadu yang menghubungkan tiga pihak: **Admin
 | Komponen | Teknologi | Digunakan Oleh |
 |---|---|---|
 | Mobile App | Flutter | Wali Santri |
-| Web Admin & Panel Ustadz | Laravel 13 | Admin, Ustadz/Ustadzah |
+| Web Admin & Panel Ustadz | **Next.js (SPA, konsumsi REST API Laravel)** | Admin, Ustadz/Ustadzah |
+| Backend API | Laravel 13 | Semua platform (Mobile & Web) |
 | Database | MySQL | Semua (via Laravel API) |
-| Autentikasi API | Laravel Sanctum | Mobile & Web |
+| Autentikasi API | Laravel Sanctum (token-based) | Mobile & Web |
 
-Mobile app **tidak** akses database langsung — semua lewat REST API Laravel (`/api/...`). Web admin bisa pakai route `web.php` (session-based) untuk Admin & Ustadz.
+Baik Mobile App (Flutter) maupun Web Admin/Ustadz (Next.js) sama-sama **tidak** akses database langsung — keduanya konsumsi REST API Laravel yang sama (`/api/...`) memakai autentikasi token Sanctum (Bearer token), pola yang identik dengan yang dipakai mobile app. `routes/web.php` di backend Laravel ini murni untuk halaman placeholder/health-check, **bukan** untuk merender UI Admin/Ustadz.
+
+> **Keputusan arsitektur (revisi v1.5):** Draft awal PRD (v1.4 dan sebelumnya) sempat mengasumsikan web Admin/Ustadz dibangun session-based langsung di Laravel (Blade view). Keputusan final: **web Admin/Ustadz dibangun sebagai aplikasi Next.js terpisah** yang berkomunikasi dengan backend Laravel murni lewat REST API — arsitektur yang sama seperti mobile app. Alasan: satu sumber API untuk semua platform, tidak ada duplikasi logic otorisasi antara Blade dan API, dan frontend web/mobile bisa dikembangkan paralel tanpa saling blocking.
+
+### 2.1 Alur Autentikasi Next.js ↔ Laravel API
+
+- Di Next.js: pakai flow `POST /api/login` → simpan token → kirim `Authorization: Bearer {token}` di setiap fetch ke endpoint `/api/admin/*` atau `/api/ustadz/*`.
+- Tidak ada perubahan di backend untuk mendukung ini — semua controller, route, dan middleware yang sudah ada di Laravel **langsung jalan** dipakai Next.js, tanpa perlu guard `web`/session baru maupun Blade view.
+- Token disimpan di sisi Next.js sebaiknya lewat `httpOnly` cookie yang di-set dari Next.js server-side (route handler / server action) — **bukan** `localStorage` — untuk mengurangi risiko pencurian token lewat XSS.
+- Backend Laravel perlu mengizinkan origin Next.js lewat konfigurasi CORS (`config/cors.php`) agar browser tidak memblokir request lintas domain saat development (`localhost:3000`) maupun production (domain Next.js yang sebenarnya).
+- Logout, refresh data user (`GET /api/me`), dan revoke token (`POST /api/logout`) memakai endpoint yang sama persis dengan yang dipakai mobile app — tidak ada endpoint terpisah untuk web.
 
 ---
 
@@ -41,9 +54,9 @@ Mobile app **tidak** akses database langsung — semua lewat REST API Laravel (`
 
 | Role | Platform | Deskripsi Singkat |
 |---|---|---|
-| **Admin** | Website | Kontrol penuh sistem: data master, keuangan, user, pengumuman |
-| **Ustadz** | Website | Mengajar 1+ kelas, mencatat absensi/nilai/hafalan santri di kelasnya |
-| **Wali Santri** | Mobile App | Orang tua/wali, memantau 1+ anak (santri) miliknya |
+| **Admin** | Website (Next.js) | Kontrol penuh sistem: data master, keuangan, user, pengumuman |
+| **Ustadz** | Website (Next.js) | Mengajar 1+ kelas, mencatat absensi/nilai/hafalan santri di kelasnya |
+| **Wali Santri** | Mobile App (Flutter) | Orang tua/wali, memantau 1+ anak (santri) miliknya |
 
 > **Catatan penting:** Selain hak akses standar per role, Admin dapat **menunjuk Ustadz tertentu** untuk memegang dua tugas tambahan (bisa satu Ustadz merangkap, atau dibagi ke beberapa Ustadz berbeda):
 > - **Penanggung Jawab Perizinan** — berlaku **untuk seluruh pesantren** (bukan per kelas/asrama). Biasanya 1-2 Ustadz yang ditunjuk menangani semua pengajuan izin dari seluruh santri.
@@ -469,6 +482,7 @@ GET    /api/admin/dashboard
 - **Multi tahun ajaran:** data nilai/kelas terikat ke `tahun_ajaran` agar histori tidak tertimpa saat naik kelas.
 - **Backup:** backup database berkala (harian, disimpan minimal 30 hari).
 - **Privasi data:** enforce hak akses di level query API (bukan hanya UI) — satu akun Wali Santri hanya bisa query data santri yang terkait dengannya; dicek di setiap endpoint, bukan diasumsikan dari tampilan.
+- **CORS:** backend Laravel mengizinkan origin frontend Next.js secara eksplisit lewat `config/cors.php` (bukan wildcard `*`), agar hanya domain Next.js yang sah yang bisa memanggil API dari browser.
 
 ---
 
@@ -484,6 +498,7 @@ GET    /api/admin/dashboard
 - Lihat data anak, ajukan izin, **QR code penjemputan** (Wali Santri via mobile)
 - Tagihan manual oleh Petugas Keuangan + upload bukti bayar
 - Pengumuman & notifikasi dasar
+- **Web Admin & Ustadz dibangun sebagai aplikasi Next.js**, terhubung ke backend API Laravel yang sama dengan mobile
 
 **Fase 2 — Pengembangan Lanjutan**
 - Payment gateway (Midtrans/Xendit) untuk pembayaran online
@@ -539,6 +554,7 @@ Bagian ini bukan requirement teknis (tidak menambah tabel database baru), tapi c
 
 | Topik | Keputusan |
 |---|---|
+| Arsitektur Web Admin/Ustadz | **Next.js sebagai SPA terpisah**, konsumsi REST API Laravel yang sama dengan mobile app lewat token Sanctum (Bearer token) — bukan Blade/session-based (revisi dari draft v1.4 dan sebelumnya) |
 | Approval izin santri | Ustadz yang **ditunjuk Admin** (Penanggung Jawab Perizinan), berlaku **untuk seluruh pesantren** (1-2 ustadz), bukan per kelas/asrama |
 | Pembuatan tagihan SPP | **Manual**, dibuat oleh Ustadz yang **ditunjuk Admin** (Petugas Keuangan/Bendahara) — bukan auto-generate sistem |
 | Pindah kelas di tengah tahun ajaran | **Didukung di Fase 1**, butuh **approval Admin**, histori kelas lama tersimpan via tabel `riwayat_kelas` |
@@ -548,7 +564,7 @@ Bagian ini bukan requirement teknis (tidak menambah tabel database baru), tapi c
 | Fitur bisnis lanjutan (tabungan santri, PPDB online, perpustakaan, ekstrakurikuler) | Masuk **Fase 3**, jangka panjang |
 | Legal, kematangan operasional & sentuhan khas pesantren | Ditambahkan sebagai **section 9** (catatan, bukan tabel database) — privasi data disarankan sejak Fase 1, sisanya menyusul Fase 2–3 |
 
-Tidak ada lagi pertanyaan terbuka untuk versi 1.4 ini. Dokumen sudah siap dipakai sebagai acuan untuk tahap desain ERD/migrasi Laravel.
+Tidak ada lagi pertanyaan terbuka untuk versi 1.5 ini. Dokumen sudah siap dipakai sebagai acuan untuk tahap desain ERD/migrasi Laravel dan pengembangan frontend Next.js.
 
 ---
 
