@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\WaliSantri;
 use App\Http\Controllers\Controller;
 use App\Models\Perizinan;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PerizinanController extends Controller
 {
@@ -15,12 +16,30 @@ class PerizinanController extends Controller
         );
     }
 
+    /**
+     * PERBAIKAN: rule sebelumnya adalah string mentah
+     *   'in:' . $santriIds->implode(',')
+     * yang, kalau $santriIds kosong (wali belum/tidak punya anak
+     * terdaftar), menghasilkan rule 'in:' — rule kosong tanpa daftar
+     * nilai. Laravel akan memperlakukan ini sebagai konfigurasi rule
+     * yang tidak valid alih-alih memberi pesan validasi yang rapi ke
+     * client. Sekarang pakai Rule::in() dengan array asli (aman untuk
+     * array kosong) dan tambahan abort_if eksplisit di awal supaya
+     * pesan errornya jelas: wali tanpa anak terdaftar tidak bisa
+     * mengajukan izin sama sekali, bukan gagal karena bug validasi.
+     */
     public function store(Request $request)
     {
         $santriIds = $request->user()->anak()->pluck('santri.id');
 
+        abort_if(
+            $santriIds->isEmpty(),
+            422,
+            'Akun Anda belum terhubung dengan santri manapun. Hubungi Admin untuk menghubungkan data anak Anda.'
+        );
+
         $data = $request->validate([
-            'santri_id' => ['required', 'in:' . $santriIds->implode(',')],
+            'santri_id' => ['required', Rule::in($santriIds)],
             'jenis' => ['required', 'in:sakit,izin_pulang,keperluan_lain'],
             'tanggal_mulai' => ['required', 'date'],
             'tanggal_selesai' => ['required', 'date', 'after_or_equal:tanggal_mulai'],

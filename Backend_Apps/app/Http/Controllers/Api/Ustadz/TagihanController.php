@@ -8,6 +8,7 @@ use App\Models\JenisTagihan;
 use App\Models\Santri;
 use App\Models\Tagihan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -51,6 +52,15 @@ class TagihanController extends Controller
      * Buat tagihan untuk banyak santri sekaligus (mis. SPP bulanan seluruh
      * kelas atau seluruh santri aktif), tetap dipicu manual oleh Petugas
      * Keuangan — bukan dijadwalkan otomatis oleh sistem.
+     *
+     * PERBAIKAN: seluruh proses insert sekarang dibungkus DB::transaction().
+     * Sebelumnya loop insert berjalan tanpa transaction — kalau terjadi
+     * error di tengah jalan (mis. constraint violation, koneksi DB putus,
+     * atau request timeout pada batch besar), sebagian tagihan sudah
+     * ter-insert sementara sisanya tidak, sehingga status "sudah generate
+     * bulan ini" jadi tidak konsisten dan sulit di-retry dengan aman
+     * (idempotency check exists() bisa memberi hasil parsial yang
+     * membingungkan Petugas Keuangan).
      */
     public function generateBulanan(Request $request)
     {
@@ -71,30 +81,34 @@ class TagihanController extends Controller
             ->when($data['kelas_id'] ?? null, fn ($q) => $q->where('kelas_id', $data['kelas_id']))
             ->pluck('id');
 
-        $dibuat = 0;
+        $dibuat = DB::transaction(function () use ($santriIds, $data, $nominal, $request) {
+            $count = 0;
 
-        foreach ($santriIds as $santriId) {
-            $sudahAda = Tagihan::where('santri_id', $santriId)
-                ->where('jenis_tagihan_id', $data['jenis_tagihan_id'])
-                ->where('periode', $data['periode'])
-                ->exists();
+            foreach ($santriIds as $santriId) {
+                $sudahAda = Tagihan::where('santri_id', $santriId)
+                    ->where('jenis_tagihan_id', $data['jenis_tagihan_id'])
+                    ->where('periode', $data['periode'])
+                    ->exists();
 
-            if ($sudahAda) {
-                continue;
+                if ($sudahAda) {
+                    continue;
+                }
+
+                Tagihan::create([
+                    'santri_id' => $santriId,
+                    'jenis_tagihan_id' => $data['jenis_tagihan_id'],
+                    'periode' => $data['periode'],
+                    'nominal' => $nominal,
+                    'jatuh_tempo' => $data['jatuh_tempo'],
+                    'status' => 'belum_bayar',
+                    'dibuat_oleh' => $request->user()->id,
+                ]);
+
+                $count++;
             }
 
-            Tagihan::create([
-                'santri_id' => $santriId,
-                'jenis_tagihan_id' => $data['jenis_tagihan_id'],
-                'periode' => $data['periode'],
-                'nominal' => $nominal,
-                'jatuh_tempo' => $data['jatuh_tempo'],
-                'status' => 'belum_bayar',
-                'dibuat_oleh' => $request->user()->id,
-            ]);
-
-            $dibuat++;
-        }
+            return $count;
+        });
 
         return response()->json([
             'message' => "Berhasil membuat {$dibuat} tagihan untuk periode {$data['periode']}.",

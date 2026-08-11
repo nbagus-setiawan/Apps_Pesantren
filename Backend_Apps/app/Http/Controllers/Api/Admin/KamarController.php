@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Kamar;
 use App\Models\Santri;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class KamarController extends Controller
@@ -30,7 +31,21 @@ class KamarController extends Controller
         return response()->json(Kamar::create($data), 201);
     }
 
-    /** Pindah kamar santri — tutup riwayat lama, buka riwayat baru */
+    /**
+     * Pindah kamar santri — tutup riwayat lama, buka riwayat baru.
+     *
+     * PERBAIKAN: dibungkus DB::transaction(). Sebelumnya tiga operasi
+     * (tutup riwayat lama, buat riwayat baru, update santri.kamar_id)
+     * berjalan sebagai tiga query terpisah tanpa transaction. Kalau
+     * request terputus atau terjadi error di antara ketiganya, data bisa
+     * berakhir dalam state tidak konsisten — misalnya riwayat lama sudah
+     * ditutup (tanggal_selesai terisi) tapi riwayat baru gagal dibuat,
+     * sehingga santri tidak punya baris riwayat_kamar aktif sama sekali
+     * padahal kolom santri.kamar_id sudah/belum berubah. Pola yang sama
+     * berlaku untuk SantriController::pindahKelas() dan
+     * PengajuanPindahKelasController::proses() yang idealnya juga
+     * ditinjau dengan pola ini.
+     */
     public function pindahkanSantri(Request $request, Kamar $kamar)
     {
         $data = $request->validate(['santri_id' => ['required', 'exists:santri,id']]);
@@ -46,13 +61,15 @@ class KamarController extends Controller
             ]);
         }
 
-        $santri->riwayatKamar()->whereNull('tanggal_selesai')->update(['tanggal_selesai' => now()]);
-        $santri->riwayatKamar()->create([
-            'kamar_id' => $kamar->id,
-            'tanggal_mulai' => now(),
-            'dipindahkan_oleh' => $request->user()->id,
-        ]);
-        $santri->update(['kamar_id' => $kamar->id]);
+        DB::transaction(function () use ($santri, $kamar, $request) {
+            $santri->riwayatKamar()->whereNull('tanggal_selesai')->update(['tanggal_selesai' => now()]);
+            $santri->riwayatKamar()->create([
+                'kamar_id' => $kamar->id,
+                'tanggal_mulai' => now(),
+                'dipindahkan_oleh' => $request->user()->id,
+            ]);
+            $santri->update(['kamar_id' => $kamar->id]);
+        });
 
         return response()->json($santri->fresh('kamar'));
     }

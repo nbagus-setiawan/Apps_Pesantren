@@ -50,15 +50,28 @@ class LaporanController extends Controller
         );
     }
 
-    /** GET /admin/laporan/keuangan?dari=&sampai=&format=csv|pdf */
+    /**
+     * GET /admin/laporan/keuangan?dari=&sampai=&format=csv|pdf
+     *
+     * PERBAIKAN: filter periode laporan sekarang menggunakan `jatuh_tempo`,
+     * BUKAN `created_at`. Alasan: tagihan bisa di-generate di muka lewat
+     * POST /ustadz/tagihan/generate-bulanan (mis. seluruh tagihan bulan
+     * Agustus dibuat sekaligus di akhir Juli). Kalau filter memakai
+     * created_at, laporan "Agustus" akan kosong karena baris tagihan
+     * tercatat created_at = Juli, padahal secara bisnis tagihan tsb
+     * adalah tagihan periode Agustus (jatuh_tempo di Agustus).
+     *
+     * Filter jatuh_tempo lebih merepresentasikan "tagihan periode ini",
+     * sesuai konsep 'periode' & 'jatuh_tempo' pada tabel tagihan.
+     */
     public function keuangan(Request $request)
     {
         [$dari, $sampai] = $this->rentangTanggal($request);
 
         $data = Tagihan::with(['santri', 'jenisTagihan'])
-            ->whereBetween('created_at', [$dari, $sampai])
+            ->whereBetween('jatuh_tempo', [$dari, $sampai])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->orderBy('created_at')
+            ->orderBy('jatuh_tempo')
             ->get();
 
         $totalNominal = $data->sum('nominal');
@@ -84,16 +97,26 @@ class LaporanController extends Controller
                 $t->nominal,
                 $t->jatuh_tempo?->format('Y-m-d'),
                 $t->status,
-            ])
+            ]),
+            // Baris ringkasan di akhir CSV agar total selalu ikut terunduh,
+            // konsisten dengan versi PDF yang sudah menampilkan totalNominal/totalLunas.
+            [
+                ['', '', '', '', '', '', ''],
+                ['Total Nominal', '', '', '', $totalNominal, '', ''],
+                ['Total Lunas', '', '', '', $totalLunas, '', ''],
+            ]
         );
     }
 
-    private function streamCsv(string $filename, array $header, iterable $rows): StreamedResponse
+    private function streamCsv(string $filename, array $header, iterable $rows, array $footerRows = []): StreamedResponse
     {
-        return response()->streamDownload(function () use ($header, $rows) {
+        return response()->streamDownload(function () use ($header, $rows, $footerRows) {
             $out = fopen('php://output', 'w');
             fputcsv($out, $header);
             foreach ($rows as $row) {
+                fputcsv($out, $row);
+            }
+            foreach ($footerRows as $row) {
                 fputcsv($out, $row);
             }
             fclose($out);
