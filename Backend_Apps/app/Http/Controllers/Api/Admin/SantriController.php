@@ -8,6 +8,7 @@ use App\Http\Resources\SantriResource;
 use App\Models\Santri;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class SantriController extends Controller
 {
@@ -57,6 +58,109 @@ class SantriController extends Controller
         $santri->update($data);
 
         return response()->json($santri);
+    }
+
+    /**
+     * Import data santri massal via CSV (PRD §4.1: "Import data santri
+     * massal (Excel/CSV)"). Endpoint: POST /api/admin/santri/import
+     *
+     * Format kolom CSV (header wajib ada di baris pertama, urutan bebas):
+     *   nis, nama, jenis_kelamin, tanggal_lahir, alamat, kelas_id, kamar_id, tanggal_masuk
+     *
+     * Setiap baris divalidasi independen. Baris yang gagal validasi TIDAK
+     * menggagalkan keseluruhan import (baris lain tetap diproses) — supaya
+     * Admin tidak harus mengulang upload 500 baris hanya karena 1 baris
+     * NIS-nya duplikat. Ringkasan sukses/gagal dikembalikan di response,
+     * termasuk nomor baris & pesan error per baris yang gagal.
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+        ]);
+
+        $path = $request->file('file')->getRealPath();
+        $handle = fopen($path, 'r');
+
+        if ($handle === false) {
+            return response()->json(['message' => 'File tidak dapat dibaca.'], 422);
+        }
+
+        $header = fgetcsv($handle);
+
+        if (! $header) {
+            fclose($handle);
+
+            return response()->json(['message' => 'File CSV kosong atau tidak valid.'], 422);
+        }
+
+        // Normalisasi header: trim + lowercase, agar tidak sensitif spasi/kapital
+        $header = array_map(fn ($h) => strtolower(trim((string) $h)), $header);
+
+        $kolomWajib = ['nis', 'nama', 'jenis_kelamin', 'tanggal_lahir', 'tanggal_masuk'];
+        $kolomHilang = array_diff($kolomWajib, $header);
+
+        if (! empty($kolomHilang)) {
+            fclose($handle);
+
+            return response()->json([
+                'message' => 'Header CSV tidak lengkap. Kolom wajib: ' . implode(', ', $kolomWajib),
+                'kolom_hilang' => array_values($kolomHilang),
+            ], 422);
+        }
+
+        $berhasil = 0;
+        $gagal = [];
+        $baris = 1; // baris 1 = header
+
+        while (($row = fgetcsv($handle)) !== false) {
+            $baris++;
+
+            // Lewati baris kosong (mis. baris terakhir file CSV)
+            if (count(array_filter($row, fn ($v) => trim((string) $v) !== '')) === 0) {
+                continue;
+            }
+
+            $data = array_combine($header, array_pad($row, count($header), null));
+
+            $validator = Validator::make($data, [
+                'nis' => ['required', 'string', 'unique:santri,nis'],
+                'nama' => ['required', 'string', 'max:255'],
+                'jenis_kelamin' => ['required', 'in:L,P'],
+                'tanggal_lahir' => ['required', 'date'],
+                'alamat' => ['nullable', 'string'],
+                'kelas_id' => ['nullable', 'integer', 'exists:kelas,id'],
+                'kamar_id' => ['nullable', 'integer', 'exists:kamar,id'],
+                'tanggal_masuk' => ['required', 'date'],
+            ]);
+
+            if ($validator->fails()) {
+                $gagal[] = [
+                    'baris' => $baris,
+                    'nis' => $data['nis'] ?? null,
+                    'errors' => $validator->errors()->all(),
+                ];
+
+                continue;
+            }
+
+            $valid = $validator->validated();
+            $valid['status'] = 'aktif';
+            $valid['kelas_id'] = ($valid['kelas_id'] ?? '') !== '' ? $valid['kelas_id'] : null;
+            $valid['kamar_id'] = ($valid['kamar_id'] ?? '') !== '' ? $valid['kamar_id'] : null;
+
+            Santri::create($valid);
+            $berhasil++;
+        }
+
+        fclose($handle);
+
+        return response()->json([
+            'message' => "Import selesai: {$berhasil} santri berhasil ditambahkan, " . count($gagal) . ' baris gagal.',
+            'total_berhasil' => $berhasil,
+            'total_gagal' => count($gagal),
+            'detail_gagal' => $gagal,
+        ], $berhasil > 0 ? 201 : 422);
     }
 
     /**

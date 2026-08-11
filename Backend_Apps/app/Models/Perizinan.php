@@ -36,13 +36,20 @@ class Perizinan extends Model
         return $this->belongsTo(User::class, 'diproses_oleh');
     }
 
-    /** Generate kode QR unik untuk penjemputan, berlaku 24 jam sejak izin disetujui. */
+    /**
+     * Generate kode QR unik untuk penjemputan. Masa berlaku mengikuti
+     * pengaturan Admin (`pengaturan.qr_durasi_jam` — PRD §4.1: "Setting
+     * durasi berlaku kode QR"), default 24 jam jika belum pernah diatur
+     * (lihat PengaturanSeeder).
+     */
     public function buatKodeQr(): string
     {
         $kode = Str::uuid()->toString();
+        $jamBerlaku = (int) Pengaturan::get('qr_durasi_jam', 24);
+
         $this->update([
             'kode_qr' => $kode,
-            'qr_berlaku_sampai' => now()->addDay(),
+            'qr_berlaku_sampai' => now()->addHours($jamBerlaku),
         ]);
 
         return $kode;

@@ -78,6 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('kepegawaian/{user}', [DataKepegawaianController::class, 'show']);
         Route::put('kepegawaian/{user}', [DataKepegawaianController::class, 'update']);
+        Route::get('kepegawaian/{user}/jadwal', [DataKepegawaianController::class, 'jadwal']);
 
         // Read-only monitoring — pembuatan tagihan dipindah ke Ustadz Petugas
         // Keuangan (lihat grup 'ustadz' di bawah), sesuai PRD §10.
