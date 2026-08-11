@@ -1,13 +1,14 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\AsramaController;
+use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\DataKepegawaianController;
 use App\Http\Controllers\Api\Admin\IzinUstadzController;
 use App\Http\Controllers\Api\Admin\JenisPelanggaranController;
 use App\Http\Controllers\Api\Admin\JenisTagihanController;
 use App\Http\Controllers\Api\Admin\KamarController;
 use App\Http\Controllers\Api\Admin\KegiatanController;
-use App\Http\Controllers\Api\Admin\KelasController;
+use App\Http\Controllers\Api\Admin\KelasController as AdminKelasController;
 use App\Http\Controllers\Api\Admin\MataPelajaranController;
 use App\Http\Controllers\Api\Admin\PengumumanController as AdminPengumumanController;
 use App\Http\Controllers\Api\Admin\PenugasanUstadzController;
@@ -17,14 +18,17 @@ use App\Http\Controllers\Api\Admin\TahunAjaranController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\Admin\WaliSantriController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\RaporController;
 use App\Http\Controllers\Api\Ustadz\AbsensiController;
 use App\Http\Controllers\Api\Ustadz\CatatanPerkembanganController;
 use App\Http\Controllers\Api\Ustadz\HafalanController;
 use App\Http\Controllers\Api\Ustadz\IzinController;
+use App\Http\Controllers\Api\Ustadz\KelasController as UstadzKelasController;
 use App\Http\Controllers\Api\Ustadz\NilaiController;
 use App\Http\Controllers\Api\Ustadz\PelanggaranController;
 use App\Http\Controllers\Api\Ustadz\PembayaranController;
 use App\Http\Controllers\Api\Ustadz\PerizinanController as UstadzPerizinanController;
+use App\Http\Controllers\Api\Ustadz\TagihanController as UstadzTagihanController;
 use App\Http\Controllers\Api\WaliSantri\AnakController;
 use App\Http\Controllers\Api\WaliSantri\NotifikasiController;
 use App\Http\Controllers\Api\WaliSantri\PerizinanController as WaliPerizinanController;
@@ -39,12 +43,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 
+    // Rapor: lintas role (wali hanya anak sendiri, ustadz/admin bebas),
+    // otorisasi dicek di dalam RaporController, bukan lewat middleware role.
+    Route::get('santri/{santriId}/rapor', [RaporController::class, 'index']);
+    Route::get('santri/{santriId}/rapor/pdf', [RaporController::class, 'pdf']);
+
     // ── ADMIN ────────────────────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->group(function () {
+        Route::get('dashboard', [DashboardController::class, 'index']);
+
         Route::apiResource('users', UserController::class);
         Route::apiResource('santri', SantriController::class);
         Route::post('santri/{santri}/pindah-kelas', [SantriController::class, 'pindahKelas']);
-        Route::apiResource('kelas', KelasController::class);
+        Route::apiResource('kelas', AdminKelasController::class);
         Route::apiResource('asrama', AsramaController::class);
         Route::apiResource('kamar', KamarController::class)->except(['show', 'update']);
         Route::post('kamar/{kamar}/pindahkan-santri', [KamarController::class, 'pindahkanSantri']);
@@ -61,8 +72,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('kepegawaian/{user}', [DataKepegawaianController::class, 'show']);
         Route::put('kepegawaian/{user}', [DataKepegawaianController::class, 'update']);
 
+        // Read-only monitoring — pembuatan tagihan dipindah ke Ustadz Petugas
+        // Keuangan (lihat grup 'ustadz' di bawah), sesuai PRD §10.
         Route::get('tagihan', [AdminTagihanController::class, 'index']);
-        Route::post('tagihan/generate-massal', [AdminTagihanController::class, 'generateMassal']);
+
         Route::apiResource('pengumuman', AdminPengumumanController::class)->only(['index', 'store', 'destroy']);
         Route::post('penugasan-ustadz', [PenugasanUstadzController::class, 'store']);
         Route::get('penugasan-ustadz', [PenugasanUstadzController::class, 'index']);
@@ -73,6 +86,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── USTADZ ───────────────────────────────────────────────
     Route::middleware('role:ustadz')->prefix('ustadz')->group(function () {
+        Route::get('kelas', [UstadzKelasController::class, 'index']);
+        Route::get('kelas/{kelas}/santri', [UstadzKelasController::class, 'santri']);
+
         Route::post('absensi/bulk', [AbsensiController::class, 'storeBulk']);
         Route::get('absensi', [AbsensiController::class, 'index']);
 
@@ -90,6 +106,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('pembayaran', [PembayaranController::class, 'index']);
         Route::post('pembayaran/{pembayaran}/verifikasi', [PembayaranController::class, 'verifikasi']);
+
+        // Petugas Keuangan saja (dicek di controller via punyaTugasAktif('keuangan'))
+        Route::get('tagihan', [UstadzTagihanController::class, 'index']);
+        Route::post('tagihan', [UstadzTagihanController::class, 'store']);
+        Route::post('tagihan/generate-bulanan', [UstadzTagihanController::class, 'generateBulanan']);
     });
 
     // ── WALI SANTRI ──────────────────────────────────────────
