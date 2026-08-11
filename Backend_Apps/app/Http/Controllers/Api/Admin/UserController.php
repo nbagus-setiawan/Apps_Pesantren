@@ -29,9 +29,7 @@ class UserController extends Controller
         ]);
 
         // Tidak perlu Hash::make() di sini — model User sudah melakukan
-        // hashing otomatis lewat cast 'password' => 'hashed'. Meng-hash
-        // manual di sini akan menyebabkan password ter-hash dua kali
-        // sehingga login gagal untuk user yang dibuat lewat endpoint ini.
+        // hashing otomatis lewat cast 'password' => 'hashed'.
         $user = User::create($data);
 
         return response()->json($user, 201);
@@ -69,6 +67,31 @@ class UserController extends Controller
         $user->update($data);
 
         return response()->json($user);
+    }
+
+    /**
+     * BARU: Reset password oleh Admin (PRD §4.1: "Reset password, nonaktifkan akun").
+     * Endpoint terpisah dari update() agar tidak tercampur dengan update
+     * profil biasa, dan supaya audit/permission-nya bisa dibedakan kalau
+     * nanti masuk ke Fase 2 (role & permission granular).
+     *
+     * Endpoint: PUT /api/admin/users/{user}/reset-password
+     */
+    public function resetPassword(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        // Tidak perlu Hash::make() — cast 'password' => 'hashed' di model
+        // User sudah menghash otomatis saat update().
+        $user->update(['password' => $data['password']]);
+
+        // Opsional tapi disarankan: cabut semua token lama supaya sesi/API
+        // token yang lama tidak bisa dipakai lagi setelah password direset.
+        $user->tokens()->delete();
+
+        return response()->json(['message' => 'Password berhasil direset.']);
     }
 
     public function destroy(User $user)

@@ -42,7 +42,8 @@ use App\Http\Controllers\Api\WaliSantri\TagihanController as WaliTagihanControll
 use Illuminate\Support\Facades\Route;
 
 // ── Publik ────────────────────────────────────────────────────
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])
+    ->middleware('throttle:5,1');
 
 // ── Terautentikasi (semua role) ─────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -59,6 +60,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'index']);
 
         Route::apiResource('users', UserController::class);
+        Route::apiResource('users', UserController::class);
+        Route::put('users/{user}/reset-password', [UserController::class, 'resetPassword']); // ← tambahan baru
         Route::apiResource('santri', SantriController::class);
         Route::post('santri/import', [SantriController::class, 'import']);
         Route::post('santri/{santri}/pindah-kelas', [SantriController::class, 'pindahKelas']);

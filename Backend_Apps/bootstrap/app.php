@@ -15,7 +15,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'active' => \App\Http\Middleware\EnsureUserIsActive::class,
         ]);
+
+        // PERBAIKAN: pasang otomatis untuk semua request yang lewat guard
+        // 'sanctum', jadi tidak perlu menambahkan 'active' manual di setiap
+        // grup route — konsisten di seluruh API tanpa risiko ada endpoint
+        // yang lupa dipasangi.
+        $middleware->appendToGroup('api', \App\Http\Middleware\EnsureUserIsActive::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

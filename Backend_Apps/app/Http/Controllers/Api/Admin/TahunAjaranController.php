@@ -43,10 +43,25 @@ class TahunAjaranController extends Controller
         return response()->json($tahunAjaran);
     }
 
+    /**
+     * PERBAIKAN: cegah hapus tahun ajaran yang masih memiliki kelas terkait.
+     * Migrasi kelas.tahun_ajaran_id pakai cascadeOnDelete(), sehingga tanpa
+     * cek ini, seluruh kelas di tahun ajaran tsb akan ikut terhapus
+     * permanen — dan lewat cascade lanjutan, mata_pelajaran serta
+     * riwayat_kelas terkait juga ikut terhapus tanpa peringatan ke Admin.
+     * Pola ini sama seperti guard yang sudah ada di KelasController,
+     * AsramaController, dan KamarController.
+     */
     public function destroy(TahunAjaran $tahunAjaran)
     {
         if ($tahunAjaran->is_active) {
             return response()->json(['message' => 'Tidak bisa menghapus tahun ajaran yang sedang aktif.'], 422);
+        }
+
+        if ($tahunAjaran->kelas()->exists()) {
+            return response()->json([
+                'message' => 'Tidak bisa dihapus, tahun ajaran ini masih memiliki kelas terkait.',
+            ], 422);
         }
 
         $tahunAjaran->delete();

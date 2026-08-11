@@ -11,8 +11,24 @@ use Illuminate\Http\Request;
 
 class DataKepegawaianController extends Controller
 {
+    /**
+     * PERBAIKAN: method update() sebelumnya tidak mengecek role user
+     * target sama sekali. Akibatnya Admin bisa membuat/mengubah baris
+     * data_kepegawaian untuk user dengan role 'wali_santri', padahal
+     * PRD §5.1 & migration data_kepegawaian menyatakan tabel ini hanya
+     * untuk role ustadz/admin ("1:1 dengan users, hanya untuk role
+     * ustadz/admin"). Tanpa guard ini, data sampah bisa masuk dan
+     * merusak asumsi query lain (mis. laporan kepegawaian yang
+     * mengasumsikan semua baris data_kepegawaian adalah staf pengajar).
+     */
     public function update(Request $request, User $user)
     {
+        abort_unless(
+            in_array($user->role, ['admin', 'ustadz'], true),
+            422,
+            'Data kepegawaian hanya berlaku untuk user dengan role admin atau ustadz.'
+        );
+
         $data = $request->validate([
             'nip_nuptk' => ['nullable', 'string'],
             'alamat' => ['nullable', 'string'],

@@ -40,8 +40,21 @@ class MataPelajaranController extends Controller
         return response()->json($mataPelajaran);
     }
 
+    /**
+     * PERBAIKAN: cegah hapus mata pelajaran yang masih memiliki riwayat
+     * nilai santri. Migrasi nilai.mapel_id pakai cascadeOnDelete(),
+     * sehingga tanpa cek ini, seluruh riwayat nilai santri di mapel
+     * tersebut akan ikut terhapus permanen tanpa peringatan ke Admin —
+     * bertentangan dengan kebutuhan audit trail di PRD §7.
+     */
     public function destroy(MataPelajaran $mataPelajaran)
     {
+        if ($mataPelajaran->nilai()->exists()) {
+            return response()->json([
+                'message' => 'Tidak bisa dihapus, mata pelajaran ini masih memiliki riwayat nilai santri.',
+            ], 422);
+        }
+
         $mataPelajaran->delete();
 
         return response()->json(['message' => 'Mata pelajaran dihapus.']);
