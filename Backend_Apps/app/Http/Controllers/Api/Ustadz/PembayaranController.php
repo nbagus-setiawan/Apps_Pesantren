@@ -33,13 +33,30 @@ class PembayaranController extends Controller
     }
 
     /**
-     * PERBAIKAN: dibungkus DB::transaction(). Sebelumnya update
-     * Pembayaran::status dan Tagihan::status (jika diverifikasi) berjalan
-     * sebagai dua query terpisah tanpa transaction. Kalau terjadi error
-     * di antara keduanya, pembayaran bisa sudah tercatat 'diverifikasi'
-     * padahal tagihan terkait masih berstatus lama (mis. 'belum_bayar'
-     * atau 'menunggu_verifikasi') — membuat wali santri melihat status
-     * yang saling bertentangan antara riwayat pembayaran dan tagihan.
+     * PERBAIKAN: dibungkus DB::transaction() (sudah sebelumnya) DAN
+     * sekarang menangani kasus status 'ditolak'.
+     *
+     * Sebelumnya, saat petugas keuangan menolak bukti transfer, kode hanya
+     * meng-update Pembayaran::status menjadi 'ditolak' tanpa menyentuh
+     * Tagihan::status sama sekali. Karena alur upload (lihat
+     * WaliSantri\TagihanController::bayar()) selalu mengubah tagihan ke
+     * 'menunggu_verifikasi' saat bukti diupload, tagihan yang bukti
+     * bayarnya ditolak akan "nyangkut" selamanya di status
+     * 'menunggu_verifikasi' — tidak pernah kembali ke 'belum_bayar'/'telat'.
+     *
+     * Dampaknya:
+     * - App\Console\Commands\TandaiTagihanTelat sengaja skip status ini,
+     *   jadi tagihan ini tidak akan pernah ditandai telat walau jatuh
+     *   tempo sudah lama lewat.
+     * - Dashboard admin (tagihan_belum_lunas) tidak menghitungnya karena
+     *   hanya menghitung status belum_bayar/telat.
+     * - Wali tidak mendapat sinyal jelas bahwa ia perlu upload ulang.
+     *
+     * Sekarang: saat status = 'ditolak', tagihan dikembalikan ke
+     * 'belum_bayar' jika belum jatuh tempo, atau 'telat' jika jatuh tempo
+     * sudah lewat — supaya wali langsung tahu tagihan itu perlu ditindak
+     * lanjuti dan sistem housekeeping (TandaiTagihanTelat) bisa jalan
+     * normal lagi untuk tagihan ini.
      */
     public function verifikasi(Request $request, Pembayaran $pembayaran)
     {
@@ -56,9 +73,22 @@ class PembayaranController extends Controller
                 'diverifikasi_oleh' => $request->user()->id,
             ]);
 
+            $tagihan = $pembayaran->tagihan;
+
             if ($data['status'] === 'diverifikasi') {
-                $pembayaran->tagihan->update(['status' => 'lunas']);
+                $tagihan->update(['status' => 'lunas']);
+
+                return;
             }
+
+            // status === 'ditolak' — kembalikan tagihan ke status yang
+            // mencerminkan kondisi sebenarnya (belum dibayar / sudah telat),
+            // bukan dibiarkan tetap 'menunggu_verifikasi'.
+            $statusBaru = $tagihan->jatuh_tempo && $tagihan->jatuh_tempo->isPast()
+                ? 'telat'
+                : 'belum_bayar';
+
+            $tagihan->update(['status' => $statusBaru]);
         });
 
         return response()->json($pembayaran->fresh());

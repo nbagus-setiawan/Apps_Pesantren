@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\ScopedToKelasDiampu;
 use App\Http\Controllers\Controller;
 use App\Models\CatatanPerkembangan;
 use App\Models\Nilai;
@@ -14,12 +15,24 @@ use Illuminate\Http\Request;
  *   GET /api/santri/{id}/rapor       -> nilai + catatan perkembangan digabung
  *   GET /api/santri/{id}/rapor/pdf   -> versi PDF sederhana
  *
- * Akses: Wali Santri hanya untuk anaknya sendiri; Ustadz & Admin bisa lihat
- * santri manapun (dicek eksplisit di sini, bukan diasumsikan dari role saja
- * — lihat PRD §7 "Privasi data").
+ * Akses: Wali Santri hanya untuk anaknya sendiri; Admin bebas lihat santri
+ * manapun; Ustadz HANYA untuk santri di kelas yang ia ampu (wali kelas atau
+ * pengajar mapel di kelas itu) — konsisten dengan pola akses di
+ * NilaiController, HafalanController, PelanggaranController, dan
+ * CatatanPerkembanganController.
+ *
+ * PERBAIKAN: sebelumnya ustadz diperlakukan sama seperti admin ("boleh
+ * lihat santri manapun"), yang membuat seorang ustadz bisa membuka rapor
+ * lengkap (nilai + catatan perkembangan) santri di kelas lain yang sama
+ * sekali tidak ia ampu. Ini bertentangan dengan PRD §7: "Privasi data:
+ * ... satu akun ... hanya bisa query data ... terkait dengannya; dicek di
+ * setiap endpoint, bukan diasumsikan dari tampilan." Sekarang ustadz
+ * di-scope dengan cara yang sama seperti controller Ustadz lainnya.
  */
 class RaporController extends Controller
 {
+    use ScopedToKelasDiampu;
+
     private function otorisasiDanAmbilSantri(Request $request, int $santriId): Santri
     {
         $user = $request->user();
@@ -31,7 +44,13 @@ class RaporController extends Controller
             return $santri;
         }
 
-        // admin & ustadz: boleh lihat santri manapun
+        if ($user->isUstadz()) {
+            $this->pastikanSantriDiKelasSaya($request, $santriId);
+
+            return Santri::findOrFail($santriId);
+        }
+
+        // admin: boleh lihat santri manapun
         return Santri::findOrFail($santriId);
     }
 

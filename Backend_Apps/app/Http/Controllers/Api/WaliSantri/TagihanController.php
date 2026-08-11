@@ -8,6 +8,7 @@ use App\Models\Pembayaran;
 use App\Models\Tagihan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class TagihanController extends Controller
 {
@@ -28,14 +29,15 @@ class TagihanController extends Controller
     /**
      * Upload bukti transfer untuk sebuah tagihan.
      *
-     * PERBAIKAN: pembuatan Pembayaran + update status Tagihan dibungkus
-     * DB::transaction() (file sudah tersimpan di disk sebelum transaction
-     * DB dimulai — upload file bukan operasi database sehingga tidak
-     * perlu, dan tidak bisa, di-rollback bersama transaction). Sebelumnya
-     * dua write DB ini terpisah: jika update status tagihan gagal setelah
-     * Pembayaran berhasil dibuat, tagihan tetap berstatus lama padahal
-     * sudah ada baris pembayaran 'pending' menunggu verifikasi — membuat
-     * Petugas Keuangan tidak melihat tagihan ini di antrean verifikasi.
+     * PERBAIKAN (baru): tambahan guard agar tidak ada lebih dari satu
+     * Pembayaran berstatus 'pending' untuk tagihan yang sama pada saat
+     * bersamaan. Sebelumnya, kalau wali upload bukti dua kali sebelum
+     * petugas keuangan sempat memverifikasi (mis. double-submit dari
+     * aplikasi mobile, atau upload ulang tanpa sadar sudah pernah
+     * upload), akan tercipta beberapa baris Pembayaran 'pending' untuk
+     * satu tagihan — membingungkan Petugas Keuangan saat verifikasi
+     * (mana yang harus diproses?) dan berisiko tagihan divalidasi dua
+     * kali dari dua bukti berbeda.
      */
     public function bayar(Request $request, Tagihan $tagihan)
     {
@@ -49,6 +51,16 @@ class TagihanController extends Controller
             403,
             'Tagihan ini bukan milik anak Anda.'
         );
+
+        $sudahAdaPending = Pembayaran::where('tagihan_id', $tagihan->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($sudahAdaPending) {
+            throw ValidationException::withMessages([
+                'tagihan_id' => ['Tagihan ini sudah memiliki bukti transfer yang sedang menunggu verifikasi.'],
+            ]);
+        }
 
         $data = $request->validate([
             'jumlah_bayar' => ['required', 'numeric', 'min:0'],

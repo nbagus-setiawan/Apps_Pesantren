@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Ustadz;
 
+use App\Http\Controllers\Concerns\ScopedToKelasDiampu;
 use App\Http\Controllers\Controller;
 use App\Models\Kelas;
 use Illuminate\Http\Request;
@@ -14,6 +15,8 @@ use Illuminate\Http\Request;
  */
 class KelasController extends Controller
 {
+    use ScopedToKelasDiampu;
+
     private function kelasDiampuQuery(Request $request)
     {
         $userId = $request->user()->id;

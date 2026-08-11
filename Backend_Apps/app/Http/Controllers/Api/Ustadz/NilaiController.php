@@ -2,49 +2,14 @@
 
 namespace App\Http\Controllers\Api\Ustadz;
 
+use App\Http\Controllers\Concerns\ScopedToKelasDiampu;
 use App\Http\Controllers\Controller;
-use App\Models\Kelas;
 use App\Models\Nilai;
-use App\Models\Santri;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class NilaiController extends Controller
 {
-    /**
-     * Daftar ID kelas yang diampu ustadz yang login (wali kelas ATAU
-     * pengajar salah satu mata pelajaran di kelas itu).
-     */
-    private function kelasDiampuIds(Request $request): array
-    {
-        $userId = $request->user()->id;
-
-        return Kelas::where('wali_kelas_id', $userId)
-            ->orWhereHas('mataPelajaran', fn ($q) => $q->where('ustadz_id', $userId))
-            ->pluck('id')
-            ->toArray();
-    }
-
-    /**
-     * Pastikan santri dengan ID ini benar-benar berada di salah satu kelas
-     * yang diampu ustadz yang login. Mencegah ustadz menginput data untuk
-     * santri di luar kelasnya (lihat PRD §7: privasi data dicek di setiap
-     * endpoint, bukan diasumsikan dari tampilan).
-     */
-    private function pastikanSantriDiKelasSaya(Request $request, int $santriId): void
-    {
-        $kelasIds = $this->kelasDiampuIds($request);
-
-        $valid = Santri::where('id', $santriId)
-            ->whereIn('kelas_id', $kelasIds)
-            ->exists();
-
-        if (! $valid) {
-            throw ValidationException::withMessages([
-                'santri_id' => ['Santri ini tidak berada di kelas yang Anda ampu.'],
-            ]);
-        }
-    }
+    use ScopedToKelasDiampu;
 
     public function store(Request $request)
     {
@@ -80,7 +45,6 @@ class NilaiController extends Controller
 
     public function update(Request $request, Nilai $nilai)
     {
-        // Pastikan nilai yang mau diedit memang milik santri di kelas yang diampu
         $this->pastikanSantriDiKelasSaya($request, $nilai->santri_id);
 
         $nilai->update($request->validate([
