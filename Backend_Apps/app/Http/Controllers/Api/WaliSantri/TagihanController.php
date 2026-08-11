@@ -7,6 +7,7 @@ use App\Http\Resources\TagihanResource;
 use App\Models\Pembayaran;
 use App\Models\Tagihan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TagihanController extends Controller
 {
@@ -24,7 +25,18 @@ class TagihanController extends Controller
         return TagihanResource::collection($tagihan);
     }
 
-    /** Upload bukti transfer untuk sebuah tagihan */
+    /**
+     * Upload bukti transfer untuk sebuah tagihan.
+     *
+     * PERBAIKAN: pembuatan Pembayaran + update status Tagihan dibungkus
+     * DB::transaction() (file sudah tersimpan di disk sebelum transaction
+     * DB dimulai — upload file bukan operasi database sehingga tidak
+     * perlu, dan tidak bisa, di-rollback bersama transaction). Sebelumnya
+     * dua write DB ini terpisah: jika update status tagihan gagal setelah
+     * Pembayaran berhasil dibuat, tagihan tetap berstatus lama padahal
+     * sudah ada baris pembayaran 'pending' menunggu verifikasi — membuat
+     * Petugas Keuangan tidak melihat tagihan ini di antrean verifikasi.
+     */
     public function bayar(Request $request, Tagihan $tagihan)
     {
         // Pastikan tagihan ini benar-benar milik salah satu anak wali yang login.
@@ -46,16 +58,20 @@ class TagihanController extends Controller
 
         $path = $request->file('bukti_transfer')->store('bukti-transfer', 'public');
 
-        $pembayaran = Pembayaran::create([
-            'tagihan_id' => $tagihan->id,
-            'dibayar_oleh' => $request->user()->id,
-            'jumlah_bayar' => $data['jumlah_bayar'],
-            'bukti_transfer' => $path,
-            'tanggal_bayar' => $data['tanggal_bayar'],
-            'status' => 'pending',
-        ]);
+        $pembayaran = DB::transaction(function () use ($tagihan, $request, $data, $path) {
+            $pembayaran = Pembayaran::create([
+                'tagihan_id' => $tagihan->id,
+                'dibayar_oleh' => $request->user()->id,
+                'jumlah_bayar' => $data['jumlah_bayar'],
+                'bukti_transfer' => $path,
+                'tanggal_bayar' => $data['tanggal_bayar'],
+                'status' => 'pending',
+            ]);
 
-        $tagihan->update(['status' => 'menunggu_verifikasi']);
+            $tagihan->update(['status' => 'menunggu_verifikasi']);
+
+            return $pembayaran;
+        });
 
         return response()->json($pembayaran, 201);
     }

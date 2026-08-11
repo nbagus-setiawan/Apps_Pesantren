@@ -46,8 +46,22 @@ class KelasController extends Controller
         return response()->json($kela);
     }
 
+    /**
+     * PERBAIKAN: cegah hapus kelas yang masih memiliki santri aktif.
+     * mata_pelajaran & riwayat_kelas pakai cascadeOnDelete, dan
+     * santri.kelas_id pakai nullOnDelete — tanpa cek ini, seluruh mata
+     * pelajaran dan riwayat_kelas terkait akan ikut terhapus permanen,
+     * dan kelas santri jadi kosong tanpa peringatan — bertentangan
+     * dengan kebutuhan audit trail di PRD §7.
+     */
     public function destroy(Kelas $kela)
     {
+        if ($kela->santri()->exists()) {
+            return response()->json([
+                'message' => 'Tidak bisa dihapus, kelas masih memiliki santri aktif.',
+            ], 422);
+        }
+
         $kela->delete();
 
         return response()->json(['message' => 'Kelas dihapus.']);

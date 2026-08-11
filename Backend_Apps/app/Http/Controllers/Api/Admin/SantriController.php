@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\StoreSantriRequest;
 use App\Http\Resources\SantriResource;
 use App\Models\Santri;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SantriController extends Controller
 {
@@ -58,7 +59,22 @@ class SantriController extends Controller
         return response()->json($santri);
     }
 
-    /** Pindah kelas — otomatis menutup riwayat_kelas lama & membuka yang baru */
+    /**
+     * Pindah kelas — otomatis menutup riwayat_kelas lama & membuka yang baru.
+     *
+     * PERBAIKAN: dibungkus DB::transaction(), mengikuti pola yang sudah
+     * diterapkan di KamarController::pindahkanSantri(). Sebelumnya tiga
+     * operasi (tutup riwayat lama, buat riwayat baru, update
+     * santri.kelas_id) berjalan sebagai tiga query terpisah tanpa
+     * transaction. Kalau request terputus atau terjadi error di antara
+     * ketiganya (mis. constraint violation, koneksi DB putus, atau
+     * timeout), data bisa berakhir dalam state tidak konsisten —
+     * misalnya riwayat_kelas lama sudah ditutup (tanggal_selesai terisi)
+     * tapi riwayat baru gagal dibuat, sehingga santri tidak punya baris
+     * riwayat_kelas aktif sama sekali padahal santri.kelas_id
+     * sudah/belum berubah. Sama seperti kasus riwayat_kamar, ini
+     * mengacaukan histori akademik santri dan sulit di-retry dengan aman.
+     */
     public function pindahKelas(Request $request, Santri $santri)
     {
         $data = $request->validate([
@@ -67,15 +83,17 @@ class SantriController extends Controller
             'keterangan' => ['nullable', 'string'],
         ]);
 
-        $santri->riwayatKelas()->whereNull('tanggal_selesai')->update(['tanggal_selesai' => now()]);
+        DB::transaction(function () use ($santri, $data, $request) {
+            $santri->riwayatKelas()->whereNull('tanggal_selesai')->update(['tanggal_selesai' => now()]);
 
-        $santri->riwayatKelas()->create([
-            ...$data,
-            'tanggal_mulai' => now(),
-            'dipindahkan_oleh' => $request->user()->id,
-        ]);
+            $santri->riwayatKelas()->create([
+                ...$data,
+                'tanggal_mulai' => now(),
+                'dipindahkan_oleh' => $request->user()->id,
+            ]);
 
-        $santri->update(['kelas_id' => $data['kelas_id']]);
+            $santri->update(['kelas_id' => $data['kelas_id']]);
+        });
 
         return response()->json($santri->fresh('kelas'));
     }

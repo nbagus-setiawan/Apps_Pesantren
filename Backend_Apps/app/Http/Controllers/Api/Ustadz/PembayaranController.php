@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Ustadz;
 use App\Http\Controllers\Controller;
 use App\Models\Pembayaran;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class PembayaranController extends Controller
@@ -31,6 +32,15 @@ class PembayaranController extends Controller
         );
     }
 
+    /**
+     * PERBAIKAN: dibungkus DB::transaction(). Sebelumnya update
+     * Pembayaran::status dan Tagihan::status (jika diverifikasi) berjalan
+     * sebagai dua query terpisah tanpa transaction. Kalau terjadi error
+     * di antara keduanya, pembayaran bisa sudah tercatat 'diverifikasi'
+     * padahal tagihan terkait masih berstatus lama (mis. 'belum_bayar'
+     * atau 'menunggu_verifikasi') — membuat wali santri melihat status
+     * yang saling bertentangan antara riwayat pembayaran dan tagihan.
+     */
     public function verifikasi(Request $request, Pembayaran $pembayaran)
     {
         $this->pastikanBerwenang($request);
@@ -40,15 +50,17 @@ class PembayaranController extends Controller
             'catatan_petugas' => ['nullable', 'string'],
         ]);
 
-        $pembayaran->update([
-            ...$data,
-            'diverifikasi_oleh' => $request->user()->id,
-        ]);
+        DB::transaction(function () use ($pembayaran, $data, $request) {
+            $pembayaran->update([
+                ...$data,
+                'diverifikasi_oleh' => $request->user()->id,
+            ]);
 
-        if ($data['status'] === 'diverifikasi') {
-            $pembayaran->tagihan->update(['status' => 'lunas']);
-        }
+            if ($data['status'] === 'diverifikasi') {
+                $pembayaran->tagihan->update(['status' => 'lunas']);
+            }
+        });
 
-        return response()->json($pembayaran);
+        return response()->json($pembayaran->fresh());
     }
 }

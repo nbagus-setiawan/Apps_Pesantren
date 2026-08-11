@@ -38,8 +38,21 @@ class AsramaController extends Controller
         return response()->json($asrama);
     }
 
+    /**
+     * PERBAIKAN: cegah hapus asrama yang masih memiliki data kamar.
+     * kamar.asrama_id pakai cascadeOnDelete, sehingga tanpa cek ini
+     * seluruh kamar di asrama tersebut (dan riwayat huni santrinya)
+     * akan ikut terhapus permanen tanpa peringatan ke Admin —
+     * bertentangan dengan kebutuhan audit trail di PRD §7.
+     */
     public function destroy(Asrama $asrama)
     {
+        if ($asrama->kamar()->exists()) {
+            return response()->json([
+                'message' => 'Tidak bisa dihapus, asrama masih memiliki data kamar. Hapus kamar terlebih dahulu.',
+            ], 422);
+        }
+
         $asrama->delete();
 
         return response()->json(['message' => 'Asrama dihapus.']);

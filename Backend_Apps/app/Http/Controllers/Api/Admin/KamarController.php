@@ -74,8 +74,21 @@ class KamarController extends Controller
         return response()->json($santri->fresh('kamar'));
     }
 
+    /**
+     * PERBAIKAN: cegah hapus kamar yang masih dihuni santri. Tanpa cek
+     * ini, migrasi kamar_id (nullOnDelete) dan riwayat_kamar
+     * (cascadeOnDelete) akan diam-diam menghapus histori huni santri
+     * dan mengosongkan santri.kamar_id tanpa peringatan ke Admin —
+     * bertentangan dengan kebutuhan audit trail di PRD §7.
+     */
     public function destroy(Kamar $kamar)
     {
+        if ($kamar->santri()->exists()) {
+            return response()->json([
+                'message' => 'Tidak bisa dihapus, kamar masih dihuni santri. Pindahkan santri terlebih dahulu.',
+            ], 422);
+        }
+
         $kamar->delete();
 
         return response()->json(['message' => 'Kamar dihapus.']);
