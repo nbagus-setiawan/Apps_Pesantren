@@ -4,7 +4,6 @@ export interface NavItem {
   icon: string;
 }
 
-/** Menu Admin — DESIGN.md §5.3 */
 export const ADMIN_NAV: NavItem[] = [
   { label: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
   { label: 'Manajemen User', href: '/admin/users', icon: '👥' },
@@ -21,7 +20,6 @@ export const ADMIN_NAV: NavItem[] = [
   { label: 'Pengaturan Sistem', href: '/admin/pengaturan', icon: '⚙️' },
 ];
 
-/** Menu Ustadz dasar — muncul untuk semua Ustadz — DESIGN.md §5.4 */
 export const USTADZ_NAV_BASE: NavItem[] = [
   { label: 'Dashboard', href: '/ustadz/dashboard', icon: '📊' },
   { label: 'Kelas Saya', href: '/ustadz/kelas', icon: '🏫' },
@@ -33,14 +31,12 @@ export const USTADZ_NAV_BASE: NavItem[] = [
   { label: 'Izin/Cuti Saya', href: '/ustadz/izin', icon: '🗓️' },
 ];
 
-/** Muncul hanya jika Ustadz ditunjuk sebagai Penanggung Jawab Perizinan */
 export const USTADZ_NAV_PERIZINAN: NavItem = {
   label: 'Perizinan Santri',
   href: '/ustadz/perizinan',
   icon: '🔑',
 };
 
-/** Muncul hanya jika Ustadz ditunjuk sebagai Petugas Keuangan */
 export const USTADZ_NAV_KEUANGAN: NavItem = {
   label: 'Keuangan',
   href: '/ustadz/keuangan',

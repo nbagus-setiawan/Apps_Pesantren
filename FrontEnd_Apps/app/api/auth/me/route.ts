@@ -19,8 +19,6 @@ export async function GET() {
   }
 
   if (upstream.status === 401) {
-    // Token sudah dicabut backend (mis. EnsureUserIsActive mencabut token
-    // user yang dinonaktifkan admin) — bersihkan cookie lokal juga.
     clearSessionToken();
     return NextResponse.json({ message: 'Sesi berakhir.' }, { status: 401 });
   }

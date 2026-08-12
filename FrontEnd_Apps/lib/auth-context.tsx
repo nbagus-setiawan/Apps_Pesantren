@@ -19,7 +19,6 @@ interface LoginPayload {
 
 interface AuthContextValue {
   user: User | null;
-  /** true selagi memuat status login awal (panggilan ke /api/auth/me). */
   loading: boolean;
   login: (payload: LoginPayload) => Promise<User>;
   logout: () => Promise<void>;

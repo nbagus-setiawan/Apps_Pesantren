@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiUrl, setSessionToken } from '@/lib/session';
 
-/**
- * Proxy login: browser mengirim email/password ke sini (bukan langsung ke
- * Laravel), supaya token yang dikembalikan Laravel bisa langsung disimpan
- * sebagai cookie httpOnly di sisi server Next.js dan tidak pernah terpapar
- * ke JavaScript sisi klien (lihat PRD §2.1 & DESAIGN.md §1.1).
- */
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {

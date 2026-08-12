@@ -4,11 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
-/**
- * Wali Santri hanya punya akses ke aplikasi mobile (lihat PRD §2 & §4.3),
- * jadi kalau akun wali_santri mencoba login di web ini, redirect ke /login
- * dengan pesan alih-alih dilempar ke dashboard yang tidak ada untuknya.
- */
 export default function HomePage() {
   const { user, loading } = useAuth();
   const router = useRouter();

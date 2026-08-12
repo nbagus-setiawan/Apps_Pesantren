@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clearSessionToken, getApiUrl, getSessionToken } from '@/lib/session';
 
-/**
- * Semua panggilan API dari komponen klien (mis. fetch('/api/proxy/admin/santri'))
- * lewat sini, bukan langsung ke Laravel. Alasan: token Sanctum disimpan
- * sebagai cookie httpOnly yang tidak bisa dibaca JavaScript sisi klien
- * (lihat lib/session.ts). Handler ini yang membaca cookie di server dan
- * menyisipkan header Authorization sebelum meneruskan request ke backend
- * — jadi token tidak pernah ada di memori browser (mitigasi XSS, sesuai
- * PRD §2.1 & DESAIGN.md §1.1/§9).
- */
-
 async function forward(request: NextRequest, segments: string[]) {
   const token = getSessionToken();
 
@@ -31,8 +21,6 @@ async function forward(request: NextRequest, segments: string[]) {
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     if (contentType?.includes('multipart/form-data')) {
-      // Biarkan browser/undici yang set boundary; jangan salin header
-      // content-type mentah karena boundary aslinya sudah dikonsumsi.
       body = await request.formData();
     } else {
       headers.set('Content-Type', contentType || 'application/json');
@@ -66,7 +54,6 @@ async function forward(request: NextRequest, segments: string[]) {
     return NextResponse.json(data, { status: upstream.status });
   }
 
-  // File binari (mis. unduhan PDF/CSV dari LaporanController, RaporController).
   const blob = await upstream.blob();
   return new NextResponse(blob, {
     status: upstream.status,

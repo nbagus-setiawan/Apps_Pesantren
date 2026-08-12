@@ -1,8 +1,5 @@
 import type { Config } from 'tailwindcss';
 
-// Token warna & tipografi diambil 1:1 dari DESIGN.md §2 & §3 agar konsisten
-// dengan Flutter (mobile Wali Santri). Jangan ubah nilai hex di sini tanpa
-// mengubah juga Color constants di sisi Flutter.
 const config: Config = {
   darkMode: 'class',
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './lib/**/*.{ts,tsx}'],

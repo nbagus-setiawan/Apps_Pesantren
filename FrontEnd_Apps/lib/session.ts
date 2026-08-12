@@ -13,26 +13,20 @@ export function getApiUrl(): string {
   return url.replace(/\/$/, '');
 }
 
-/** Ambil token Sanctum dari cookie httpOnly. Hanya bisa dipanggil dari server (route handler / server component). */
 export function getSessionToken(): string | undefined {
   return cookies().get(AUTH_COOKIE_NAME)?.value;
 }
 
-/** Simpan token ke cookie httpOnly setelah login berhasil. */
 export function setSessionToken(token: string) {
   cookies().set(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    // Selaras dengan SESSION_LIFETIME default backend (120 menit); token
-    // Sanctum sendiri tidak otomatis kedaluwarsa kecuali diset expiration,
-    // cookie ini hanya membatasi umur sesi di sisi browser.
     maxAge: 60 * 60 * 8,
   });
 }
 
-/** Hapus cookie sesi saat logout atau saat token ditolak (401) oleh backend. */
 export function clearSessionToken() {
   cookies().delete(AUTH_COOKIE_NAME);
 }

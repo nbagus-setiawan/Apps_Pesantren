@@ -2,10 +2,6 @@ import type { Metadata } from 'next';
 import { AuthProvider } from '@/lib/auth-context';
 import './globals.css';
 
-// Poppins (heading) & Inter (body) dimuat lewat <link> runtime, bukan
-// next/font/google, supaya proses build tidak bergantung pada akses
-// jaringan ke fonts.googleapis.com saat ini dijalankan (mis. di CI/sandbox
-// tanpa akses domain tsb). Nama font dirujuk langsung di tailwind.config.ts.
 export const metadata: Metadata = {
   title: 'Sistem Manajemen Pesantren',
   description: 'Panel Admin & Ustadz — Sistem Manajemen Pesantren',

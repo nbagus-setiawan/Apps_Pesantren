@@ -12,9 +12,6 @@ export default function UstadzLayout({ children }: { children: React.ReactNode }
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { perizinan, keuangan } = usePenugasan();
 
-  // Menu dinamis: item Perizinan/Keuangan hanya muncul kalau Ustadz yang
-  // login punya penugasan aktif terkait (DESIGN.md §5.2 & §9) — jangan
-  // hardcode berdasarkan role saja.
   const items = useMemo(() => {
     const extra = [];
     if (perizinan) extra.push(USTADZ_NAV_PERIZINAN);

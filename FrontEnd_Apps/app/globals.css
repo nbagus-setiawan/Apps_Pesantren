@@ -14,7 +14,6 @@
   h3 {
     @apply font-heading;
   }
-  /* Fokus keyboard harus selalu terlihat (DESIGN.md §frontend-design quality floor) */
   :focus-visible {
     outline: 2px solid theme('colors.primary.500');
     outline-offset: 2px;
@@ -36,9 +35,18 @@
       bg-white px-5 py-2.5 text-sm font-medium text-neutral-900 transition-colors
       hover:border-primary-300 disabled:cursor-not-allowed disabled:opacity-60;
   }
+  .btn-danger-ghost {
+    @apply inline-flex items-center justify-center rounded-control border border-danger/20
+      bg-white px-5 py-2.5 text-sm font-medium text-danger transition-colors
+      hover:bg-danger/5 disabled:cursor-not-allowed disabled:opacity-60;
+  }
   .input-field {
     @apply w-full rounded-control border border-neutral-100 bg-white px-4 py-2.5 text-sm
       text-neutral-900 placeholder:text-neutral-500 focus-visible:border-primary-500;
+  }
+  .select-field {
+    @apply w-full rounded-control border border-neutral-100 bg-white px-4 py-2.5 text-sm
+      text-neutral-900 focus-visible:border-primary-500;
   }
 }
 
