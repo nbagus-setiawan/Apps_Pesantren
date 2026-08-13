@@ -10,6 +10,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: 'Data Santri', href: '/admin/santri', icon: '🎓' },
   { label: 'Data Kepegawaian', href: '/admin/kepegawaian', icon: '🧑‍🏫' },
   { label: 'Kelas & Tahun Ajaran', href: '/admin/kelas', icon: '🏫' },
+  { label: 'Approval Pindah Kelas', href: '/admin/pindah-kelas', icon: '🔀' },
   { label: 'Asrama & Kamar', href: '/admin/asrama', icon: '🛏️' },
   { label: 'Jenis Pelanggaran & Rekap Poin', href: '/admin/pelanggaran', icon: '⚖️' },
   { label: 'Keuangan', href: '/admin/keuangan', icon: '💰' },
@@ -17,6 +18,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: 'Penjemputan', href: '/admin/penjemputan', icon: '🚗' },
   { label: 'Manajemen Penugasan', href: '/admin/penugasan', icon: '🔑' },
   { label: 'Pengumuman & Kegiatan', href: '/admin/pengumuman', icon: '📢' },
+  { label: 'Laporan', href: '/admin/laporan', icon: '📈' },
   { label: 'Pengaturan Sistem', href: '/admin/pengaturan', icon: '⚙️' },
 ];
 

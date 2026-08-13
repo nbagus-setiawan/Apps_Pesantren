@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Admin\PengaturanController;
 use App\Http\Controllers\Api\Admin\PengumumanController as AdminPengumumanController;
 use App\Http\Controllers\Api\Admin\PenjemputanController;
 use App\Http\Controllers\Api\Admin\PenugasanUstadzController;
+use App\Http\Controllers\Api\Admin\PerizinanController;
 use App\Http\Controllers\Api\Admin\SantriController;
 use App\Http\Controllers\Api\Admin\TagihanController as AdminTagihanController;
 use App\Http\Controllers\Api\Admin\TahunAjaranController;
@@ -86,6 +87,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // Read-only monitoring — pembuatan tagihan dipindah ke Ustadz Petugas
         // Keuangan (lihat grup 'ustadz' di bawah), sesuai PRD §10.
         Route::get('tagihan', [AdminTagihanController::class, 'index']);
+
+        // BARU: monitoring read-only riwayat perizinan santri (PRD §4.1).
+        // Approve/reject tetap di Ustadz Penanggung Jawab Perizinan.
+        Route::get('perizinan', [PerizinanController::class, 'index']);
 
         Route::apiResource('pengumuman', AdminPengumumanController::class)->only(['index', 'store', 'destroy']);
         Route::post('penugasan-ustadz', [PenugasanUstadzController::class, 'store']);

@@ -170,6 +170,20 @@ export interface PerizinanMonitoring {
   diajukan_oleh?: { id: number; name: string } | null;
 }
 
+// ── Pengajuan Pindah Kelas (approval Admin) ──────────────────
+
+export type StatusPengajuanPindahKelas = 'pending' | 'disetujui' | 'ditolak';
+
+export interface PengajuanPindahKelas {
+  id: number;
+  keterangan: string | null;
+  status: StatusPengajuanPindahKelas;
+  catatan: string | null;
+  santri?: { id: number; nama: string; nis?: string } | null;
+  kelas_tujuan?: { id: number; nama: string } | null;
+  diajukan_oleh?: { id: number; name: string } | null;
+}
+
 // ── Penjemputan ──────────────────────────────────────────────
 
 export interface PenjemputanLog {
