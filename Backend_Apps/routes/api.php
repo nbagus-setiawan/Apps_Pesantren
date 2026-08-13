@@ -60,9 +60,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'index']);
 
+        // PERBAIKAN: sebelumnya baris ini terdaftar dua kali berturut-turut
+        // (tidak menyebabkan error karena Laravel hanya mendaftarkan set
+        // route yang sama dua kali, tapi tetap sampah/berpotensi membingungkan
+        // saat baca `php artisan route:list`). Sekarang cukup sekali.
         Route::apiResource('users', UserController::class);
-        Route::apiResource('users', UserController::class);
-        Route::put('users/{user}/reset-password', [UserController::class, 'resetPassword']); // ← tambahan baru
+        Route::put('users/{user}/reset-password', [UserController::class, 'resetPassword']);
+
         Route::apiResource('santri', SantriController::class);
         Route::post('santri/import', [SantriController::class, 'import']);
         Route::post('santri/{santri}/pindah-kelas', [SantriController::class, 'pindahKelas']);
@@ -88,7 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Keuangan (lihat grup 'ustadz' di bawah), sesuai PRD §10.
         Route::get('tagihan', [AdminTagihanController::class, 'index']);
 
-        // BARU: monitoring read-only riwayat perizinan santri (PRD §4.1).
+        // Monitoring read-only riwayat perizinan santri (PRD §4.1).
         // Approve/reject tetap di Ustadz Penanggung Jawab Perizinan.
         Route::get('perizinan', [PerizinanController::class, 'index']);
 
