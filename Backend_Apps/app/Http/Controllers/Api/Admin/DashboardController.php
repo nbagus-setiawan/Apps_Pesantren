@@ -69,7 +69,8 @@ class DashboardController extends Controller
                     'jumlah_santri' => $k->santri_count,
                 ])
                 ->filter(fn ($row) => $row['jumlah_santri'] > 0)
-                ->values();
+                ->values()
+                ->all(); // Memastikan format menjadi array murni
 
             // Aktivitas terbaru: gabungan 5 absensi-alpa terbaru, 5 tagihan
             // terbaru, dan 5 pengajuan izin terbaru, disortir ulang lintas
@@ -128,7 +129,9 @@ class DashboardController extends Controller
                     'tipe' => $row['tipe'],
                     'deskripsi' => $row['deskripsi'],
                     'waktu' => $row['waktu']?->toIso8601String(),
-                ]);
+                ])
+                ->values() // Mengembalikan index array agar berurutan (0, 1, 2, dst)
+                ->all(); // Memastikan format menjadi array murni
 
             return [
                 'santri' => [

@@ -10,6 +10,7 @@ import { SantriFormModal } from '@/components/santri/SantriFormModal';
 import { PindahKelasModal } from '@/components/santri/PindahKelasModal';
 import { AddWaliModal } from '@/components/santri/AddWaliModal';
 import type { Santri, StatusSantri } from '@/lib/types';
+import { ArrowLeft, Edit3, ArrowRightLeft, UserPlus, Trash2, Shield, Calendar, User, Building2, MapPin } from 'lucide-react';
 
 const STATUS_TONE: Record<StatusSantri, 'success' | 'warning' | 'danger' | 'neutral'> = {
   aktif: 'success',
@@ -81,7 +82,7 @@ export default function SantriDetailPage() {
       <div className="flex min-h-[40vh] items-center justify-center">
         <div className="flex items-center gap-3 text-neutral-500">
           <span className="h-5 w-5 animate-spin rounded-full border-2 border-neutral-300 border-t-primary-500" />
-          <span className="text-sm">Memuat…</span>
+          <span className="text-sm font-medium">Memuat data santri…</span>
         </div>
       </div>
     );
@@ -89,11 +90,11 @@ export default function SantriDetailPage() {
 
   if (error && !santri) {
     return (
-      <div>
-        <Link href="/admin/santri" className="mb-4 inline-block text-sm text-primary-700 hover:underline">
-          ← Kembali ke Data Santri
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        <Link href="/admin/santri" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:underline">
+          <ArrowLeft size={16} /> Kembali ke Data Santri
         </Link>
-        <div role="alert" className="rounded-control border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm text-rose-700 shadow-xs mt-4">
           {error}
         </div>
       </div>
@@ -103,75 +104,108 @@ export default function SantriDetailPage() {
   if (!santri) return null;
 
   return (
-    <div>
-      <Link href="/admin/santri" className="mb-4 inline-block text-sm text-primary-700 hover:underline">
-        ← Kembali ke Data Santri
-      </Link>
+    <div className="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8 pb-16">
+      {/* Tautan Kembali */}
+      <div>
+        <Link href="/admin/santri" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors">
+          <ArrowLeft size={16} /> Kembali ke Data Santri
+        </Link>
+      </div>
 
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-h1 text-neutral-900">{santri.nama}</h1>
+      {/* Header Halaman Detail */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white p-6 rounded-2xl shadow-sm border border-neutral-100">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 font-heading">{santri.nama}</h1>
             <Badge tone={STATUS_TONE[santri.status]}>{STATUS_LABEL[santri.status]}</Badge>
           </div>
-          <p className="mt-1 text-sm text-neutral-500">NIS {santri.nis}</p>
+          <p className="text-sm font-medium text-neutral-500 flex items-center gap-2">
+            <span>NIS: <strong className="text-neutral-800">{santri.nis}</strong></span>
+            <span>·</span>
+            <span className="capitalize">Jenis Kelamin: {santri.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</span>
+          </p>
         </div>
-        <div className="flex gap-2">
-          <button className="btn-secondary" onClick={() => setPindahOpen(true)}>
-            🔀 Pindah Kelas
+        
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button 
+            className="inline-flex items-center gap-2 bg-white hover:bg-neutral-50 text-neutral-700 border border-neutral-200 px-4 py-2.5 rounded-xl font-semibold text-sm shadow-xs transition-all"
+            onClick={() => setPindahOpen(true)}
+          >
+            <ArrowRightLeft size={16} className="text-primary-600" />
+            Pindah Kelas
           </button>
-          <button className="btn-primary" onClick={() => setEditOpen(true)}>
-            ✏️ Edit
+          <button 
+            className="inline-flex items-center gap-2 bg-[#0052FF] hover:bg-[#0040CC] text-white px-4 py-2.5 rounded-xl font-semibold text-sm shadow-md shadow-blue-500/20 transition-all"
+            onClick={() => setEditOpen(true)}
+          >
+            <Edit3 size={16} />
+            Edit Biodata
           </button>
         </div>
       </div>
 
       {error && (
-        <div role="alert" className="mb-4 rounded-control border border-danger/20 bg-danger/5 px-4 py-3 text-sm text-danger">
-          {error}
+        <div role="alert" className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm text-rose-700 shadow-xs">
+          <span>{error}</span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="card p-6 lg:col-span-2">
-          <h2 className="text-h3 mb-4 text-neutral-900">Biodata</h2>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Item label="Jenis Kelamin" value={santri.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'} />
-            <Item label="Tanggal Lahir" value={santri.tanggal_lahir ?? '-'} />
-            <Item label="Kelas" value={santri.kelas?.nama ?? '-'} />
-            <Item label="Kamar" value={santri.kamar?.nama ?? '-'} />
-            {santri.alamat !== undefined && <Item label="Alamat" value={santri.alamat || '-'} full />}
+      {/* Grid Informasi Utama */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Biodata Lengkap */}
+        <div className="card p-6 lg:col-span-2 shadow-sm border border-neutral-100 rounded-2xl bg-white space-y-4">
+          <h2 className="text-base font-semibold text-neutral-900 font-heading flex items-center gap-2 border-b border-neutral-100 pb-3">
+            <Shield size={18} className="text-primary-600" />
+            Informasi Biodata Santri
+          </h2>
+          <dl className="grid grid-cols-1 gap-5 sm:grid-cols-2 pt-1">
+            <Item label="Tanggal Lahir" value={santri.tanggal_lahir ?? '-'} icon={<Calendar size={15} />} />
+            <Item label="Jenis Kelamin" value={santri.jenis_kelamin === 'L' ? 'Laki-laki' : 'Perempuan'} icon={<User size={15} />} />
+            <Item label="Kelas Saat Ini" value={santri.kelas?.nama ?? 'Belum ada kelas'} icon={<Building2 size={15} />} />
+            <Item label="Kamar Asrama" value={santri.kamar?.nama ?? 'Belum ada kamar'} icon={<Building2 size={15} />} />
+            {santri.alamat !== undefined && <Item label="Alamat Domisili" value={santri.alamat || '-'} full icon={<MapPin size={15} />} />}
           </dl>
         </div>
 
-        <div className="card p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-h3 text-neutral-900">Wali Santri</h2>
-            <button className="text-xs font-medium text-primary-700 hover:underline" onClick={() => setAddWaliOpen(true)}>
-              + Hubungkan
-            </button>
+        {/* Daftar Wali Santri */}
+        <div className="card p-6 shadow-sm border border-neutral-100 rounded-2xl bg-white flex flex-col justify-between">
+          <div>
+            <div className="mb-4 flex items-center justify-between border-b border-neutral-100 pb-3">
+              <h2 className="text-base font-semibold text-neutral-900 font-heading flex items-center gap-2">
+                Wali Santri
+              </h2>
+              <button 
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100/60 px-2.5 py-1.5 rounded-lg transition-colors"
+                onClick={() => setAddWaliOpen(true)}
+              >
+                <UserPlus size={14} /> Hubungkan
+              </button>
+            </div>
+
+            {(!santri.wali || santri.wali.length === 0) && (
+              <div className="py-8 text-center">
+                <p className="text-sm text-neutral-400">Belum ada wali yang terhubung dengan santri ini.</p>
+              </div>
+            )}
+
+            <ul className="space-y-3">
+              {santri.wali?.map((w) => (
+                <li key={w.id} className="flex items-center justify-between rounded-xl border border-neutral-100 bg-neutral-50/50 p-3.5 transition-all hover:bg-neutral-50">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-neutral-900 truncate">{w.nama}</p>
+                    <p className="text-xs font-medium text-primary-600 mt-0.5">Hubungan: {HUBUNGAN_LABEL[w.hubungan] ?? w.hubungan}</p>
+                  </div>
+                  <button
+                    className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Lepas Wali"
+                    onClick={() => setRemoveWaliTarget({ id: w.id, nama: w.nama })}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
-
-          {(!santri.wali || santri.wali.length === 0) && (
-            <p className="text-sm text-neutral-500">Belum ada wali yang terhubung ke santri ini.</p>
-          )}
-
-          <ul className="space-y-3">
-            {santri.wali?.map((w) => (
-              <li key={w.id} className="flex items-center justify-between rounded-control border border-neutral-100 px-3 py-2">
-                <div>
-                  <p className="text-sm font-medium text-neutral-900">{w.nama}</p>
-                  <p className="text-xs text-neutral-500">{HUBUNGAN_LABEL[w.hubungan] ?? w.hubungan}</p>
-                </div>
-                <button
-                  className="text-xs font-medium text-danger hover:underline"
-                  onClick={() => setRemoveWaliTarget({ id: w.id, nama: w.nama })}
-                >
-                  Lepas
-                </button>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
 
@@ -199,33 +233,43 @@ export default function SantriDetailPage() {
       <Modal
         open={Boolean(removeWaliTarget)}
         onClose={() => setRemoveWaliTarget(null)}
-        title="Lepas Wali"
+        title="Lepas Hubungan Wali"
         size="sm"
         footer={
-          <>
-            <button className="btn-secondary" onClick={() => setRemoveWaliTarget(null)} disabled={removingWali}>
+          <div className="flex items-center justify-end gap-3 w-full">
+            <button 
+              className="px-4 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-700 text-sm font-semibold hover:bg-neutral-50 transition-all shadow-xs" 
+              onClick={() => setRemoveWaliTarget(null)} 
+              disabled={removingWali}
+            >
               Batal
             </button>
-            <button className="btn-danger-ghost" onClick={handleRemoveWali} disabled={removingWali}>
+            <button 
+              className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold shadow-md shadow-rose-500/20 transition-all disabled:opacity-50" 
+              onClick={handleRemoveWali} 
+              disabled={removingWali}
+            >
               {removingWali ? 'Memproses…' : 'Ya, Lepas'}
             </button>
-          </>
+          </div>
         }
       >
-        <p className="text-sm text-neutral-700">
-          Lepas <span className="font-medium">{removeWaliTarget?.nama}</span> dari daftar wali{' '}
-          <span className="font-medium">{santri.nama}</span>?
+        <p className="text-sm text-neutral-700 leading-relaxed">
+          Apakah kamu yakin ingin melepaskan <span className="font-semibold text-neutral-900">{removeWaliTarget?.nama}</span> dari daftar wali santri <span className="font-semibold text-neutral-900">{santri.nama}</span>?
         </p>
       </Modal>
     </div>
   );
 }
 
-function Item({ label, value, full }: { label: string; value: string; full?: boolean }) {
+function Item({ label, value, full, icon }: { label: string; value: string; full?: boolean; icon?: React.ReactNode }) {
   return (
-    <div className={full ? 'sm:col-span-2' : ''}>
-      <dt className="text-xs uppercase tracking-wide text-neutral-500">{label}</dt>
-      <dd className="mt-1 text-sm text-neutral-900">{value}</dd>
+    <div className={full ? 'sm:col-span-2 space-y-1' : 'space-y-1'}>
+      <dt className="text-xs uppercase tracking-wider text-neutral-400 font-semibold flex items-center gap-1.5">
+        {icon}
+        {label}
+      </dt>
+      <dd className="text-sm font-medium text-neutral-900 pl-5">{value}</dd>
     </div>
   );
 }

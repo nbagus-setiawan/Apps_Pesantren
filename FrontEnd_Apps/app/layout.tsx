@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="id" className="h-full bg-neutral-100">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -18,7 +18,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body>
+      {/* Tambahkan antialiased agar font terlihat jauh lebih tajam dan rapi */}
+      <body className="h-full antialiased">
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
